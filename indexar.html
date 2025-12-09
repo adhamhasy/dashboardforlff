@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>let's go gym- ابدأ رحلتك اللياقية</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="firebase-init.js" defer></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body class="gradient-bg">
+
+    <div id="message-box" class="message-box hidden opacity-0">
+        <p id="message-text"></p>
+    </div>
+
+    <header class="main-header">
+        <div class="container header-content">
+            <h1 class="logo">  let's go <span class="logo-white">gym</span>  </h1>  <a  href="index.html" class="ctab-button">
+            en
+            </a> 
+        </div><div class="container header-content"><h5 class="logor">#ابطال  <span class="logor-white">اللعبة</span></h5></div>
+    </header>
+
+    <main class="container main-content">
+
+        <section id="hero" class="hero-section">
+                        <img src="logo.png" class="logoimg">
+            <h2 class="hero-title">
+                ابدأ <span class="accent-yellow">تحولك</span> اليوم
+            </h2>
+            <p class="hero-subtitle">
+                احصل على معدات عالمية المستوى، ومدربين محترفين، ودروس حصرية من أي مكان.
+            </p>
+            <a href="#pricing" class="cta-button">
+                انضم الآن ولنبدأ رحلتك
+            </a>
+        </section>
+
+        <section id="classes" class="classes-section">
+            <h3 class="section-title accent-yellow">ما نقدمه</h3>
+            <div class="classes-grid">
+                <div class="aclass-card">
+                    <h4 class="card-title">بناء الأجسام</h4>
+                    <p class="card-text">ابنِ العضلات والقوة من خلال جلسات رفع الأثقال الموجهة والبرامج الشخصية.</p>
+                </div>
+                <div class="bclass-card">
+                    <h4 class="card-title">الملاكمة</h4>
+                    <p class="card-text">عزز قدرتك على التحمل والقوة.</p>
+                </div>
+                <div class="class-card">
+                    <h4 class="card-title">اللياقة البدنية والحركة</h4>
+                    <p class="card-text">حسّن مرونتك، وتوازنك، وقوة جسمك.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="pricing" class="pricing-section">
+            <h3 class="section-title text-white">اختر خطتك</h3>
+
+            <div class="pricing-layout">
+
+                <div class="plan-options">
+                    <div class="plan-card">
+                        <h4 class="plan-title accent-yellow">12 يومًا</h4>
+                        <p class="plan-subtitle">مثالية لمرتادي الجيم العرضيين.</p>
+                        <p class="plan-price">120 جنيه مصري<span class="plan-period">/شهريًا</span></p>
+                    </div>
+                    <div class="plan-card best-value-card">
+                        <div class="best-value-badge">
+                            <span>أفضل قيمة</span>
+                        </div>
+                        <h4 class="plan-title accent-yellow">30 يومًا</h4>
+                        <p class="plan-subtitle">حسّن جسمك في اشتراكنا لمدة 30 يومًا.</p>
+                        <p class="plan-price">800 جنيه مصري
+                        <span class="plan-period">/شهريًا</span></p>
+                    </div>
+                </div>
+
+                <div class="subscription-form-container">
+                    <h4 class="form-title">ابدأ اشتراكك عبر الإنترنت</h4>
+
+                    <form id="subscription-form" class="subscription-form" onsubmit="handleSubscription(event)">
+
+                        <div class="form-group">
+                            <label for="name">الاسم الكامل</label>
+                            <input type="text" id="name" name="name" required placeholder="اسم المستخدم">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="email">عنوان البريد الإلكتروني</label>
+                            <input type="email" id="email" name="email" required placeholder="youexample.com">
+                        </div>
+
+                        <div class="plan-selection">
+                            <label class="plan-label-heading">اختر الخطة</label>
+
+                            <div class="radio-option">
+                                <input type="radio" id="plan-essential" name="plan" value="30 Days Journey (1200/mo)" required>
+                                <label for="plan-essential">رحلة 30 يومًا (1200/شهر)</label>
+                            </div>
+
+                            <div class="radio-option">
+                                <input type="radio" id="plan-unlimited" name="plan" value="12 Days Journey (800/mo)" checked>
+                                <label for="plan-unlimited">رحلة 12 يومًا (800/شهر)</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="cta-button form-submit-button">
+                            إكمال الاشتراك
+                        </button>
+                         <div class="ihas"> <a href="success.html" class="ihas" >
+                            لدي اشتراك
+                        </a></div>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <section id="contact" class="contact-section">
+            <h3 class="section-title accent-yellow">قم بزيارتنا</h3>
+            <p class="contact-intro">
+                ابحث عن أقرب موقع "لننطلق إلى الجيم" أو تواصل مع فريق الدعم لدينا.
+            </p>
+            <div class="contact-details">
+                <h3 class="contact-subtitle accent-yellow">موقعنا</h3>
+                <p>44 عمر لطفي - أمام سينما أوديون كامب شيزار - الإسكندرية، مصر</p>
+                <h3 class="contact-subtitle accent-yellow">اتصل بنا</h3>
+                <p>+20 1061314255</p>
+                <p> info@letsgogym.com</p>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="main-footer">
+        <div class="container footer-content">
+            <p>&copy; 2026 لننطلق إلى الجيم. جميع الحقوق محفوظة. | مدعوم بالنتائج.</p>
+        </div>
+    </footer>
+
+    <script type="module" src="script.js" defer></script>
+
+</body>
+</html>

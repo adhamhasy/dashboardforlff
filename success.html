@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Status</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    </head>
+<body class="gradient-bg text-text-light min-h-screen">
+
+    <header class="main-header">
+        <div class="container header-content">
+            <h1 class="logo">let's go <span class="logo-white">gym</span></h1>
+            
+            
+        </div>
+    </header>
+
+    <main class="container main-content text-center">
+
+        <section id="subscription-status" class="hidden p-6 md:p-12 rounded-3xl bg-primary-dark shadow-2xl border border-gray-800 max-w-2xl mx-auto my-16">
+            <h2 class="text-5xl font-extrabold mb-4 text-accent-yellow">
+                Your Membership Status
+            </h2>
+            <p class="text-xl text-gray-400 mb-8">
+                Welcome back, <span id="display-name" class="font-bold text-white"></span>!
+            </p>
+
+            <div class="text-left space-y-4">
+                <div class="status-detail">
+                    <span class="detail-label">Plan:</span>
+                    <span id="display-plan" class="detail-value"></span>
+                </div>
+                <div class="status-detail">
+                    <span class="detail-label">Username:</span>
+                    <span id="display-username" class="detail-value"></span>
+                </div>
+                <div class="status-detail">
+                    <span class="detail-label">Code:</span>
+                    <span id="display-code" class="detail-value"></span>
+                </div>
+                <div class="status-detail">
+                    <span class="detail-label">Days Left:</span>
+                    <span id="days-left" class="detail-value text-accent-yellow font-extrabold"></span>
+                </div>
+                <div class="status-detail">
+                    <span class="detail-label">Payment:</span>
+                    <span id="payment-status" class="unpaid">UNPAID - Access Denied</span>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <a href="index.html" class="cta-button">Back to Home</a>
+            </div>
+        </section>
+
+        <section id="no-data-message" class="hidden text-center my-16">
+            <h2 class="text-4xl font-extrabold text-red-500">Subscription Not Found!</h2>
+            <p class="text-xl text-gray-400 mt-4">
+                We couldn't find your subscription details. This may happen if your browser data was cleared. Please check your code or contact support.
+            </p>
+            <a href="index.html" class="cta-button mt-6">Go to Subscription Form</a>
+        </section>
+
+    </main>
+
+    <footer class="main-footer">
+        <div class="container footer-content">
+            <p>&copy; 2026 let's go gym. all rights reserved. | powered by results.</p>
+        </div>
+    </footer>
+    
+    <script type="module" src="firebase-init.js" defer></script>
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Utility function to calculate status
+        function getSubscriptionStatus(subscription) {
+            const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+            // startDate is a timestamp (number), duration is days
+            const expiryTimestamp = subscription.startDate + (subscription.duration * oneDayInMilliseconds);
+            const timeRemaining = expiryTimestamp - Date.now();
+            const daysLeft = Math.ceil(timeRemaining / oneDayInMilliseconds);
+            
+            return {
+                daysLeft: Math.max(0, daysLeft),
+                isExpired: daysLeft <= 0
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const docId = localStorage.getItem('currentSubscriptionDocId'); // Look up by Firestore ID
+            const statusSection = document.getElementById('subscription-status');
+            const noDataSection = document.getElementById('no-data-message');
+
+            if (!docId) {
+                noDataSection.classList.remove('hidden');
+                return; 
+            }
+
+            try {
+                // --- Firestore Query: Get the document by ID ---
+                const docRef = doc(db, "subscriptions", docId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const sub = docSnap.data();
+                    const status = getSubscriptionStatus(sub);
+
+                    // --- Display Data ---
+                    document.getElementById('display-name').textContent = sub.name;
+                    document.getElementById('display-plan').textContent = sub.plan;
+                    document.getElementById('display-code').textContent = sub.code;
+                    document.getElementById('display-username').textContent = sub.username;
+                    
+                    document.getElementById('days-left').textContent = `${status.daysLeft} days`;
+
+                    const paymentElement = document.getElementById('payment-status');
+                    
+                    if (sub.isPaid) {
+                        paymentElement.textContent = (status.daysLeft > 0) ? 'PAID & ACTIVE' : 'PAID (EXPIRED)';
+                        paymentElement.className = 'status-box-paid'; 
+                    } else {
+                        paymentElement.textContent = 'UNPAID - Access Denied';
+                        paymentElement.className = 'status-box-unpaid'; 
+                    }
+                    
+                    statusSection.classList.remove('hidden');
+                } else {
+                    noDataSection.classList.remove('hidden');
+                }
+            } catch (e) {
+                console.error("Error fetching subscription status: ", e);
+                noDataSection.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
