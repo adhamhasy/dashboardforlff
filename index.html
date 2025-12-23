@@ -1,93 +1,252 @@
-// pos-print.js
-// This module handles the hardware connection and raw printing commands (ESC/POS).
-// It relies on the QZ Tray library being loaded in dashboard.html.
+<!DOCTYPE html>
+<html lang="en">
 
-// --- ESC/POS COMMANDS ---
-// These are common raw byte sequences for thermal printers.
-// Cash Drawer Kick: ESC p 0 50 50 (Hex: 1B 70 00 32 32)
-const ESC_POS_KICK_DRAWER = [27, 112, 0, 50, 50]; 
-// Full Cut: GS V A 0 (Hex: 1D 56 41 00)
-const ESC_POS_FULL_CUT = [29, 86, 65, 0]; 
-
-/**
- * Generates the raw receipt content in a basic text format.
- * This function calculates the amount based on the plan.
- * @param {Object} member - The subscription data object.
- * @param {string} docId - The Firestore document ID.
- * @returns {string} - The formatted receipt text.
- */
-export function generateReceiptContent(member, docId) {
-    // Determine the price based on the plan name
-    let totalAmount = 'N/A';
-    if (member.plan.includes('30 Days')) {
-        totalAmount = '1200';
-    } else if (member.plan.includes('12 Days')) {
-        totalAmount = '800';
-    }
-    
-    // The payment type is assumed to be CASH when using the Mark Paid button for the kick drawer action
-    const paymentType = 'CASH'; 
-
-    let content = [
-        '        LET\'S GO GYM',
-        '      Official Receipt',
-        '--------------------------------',
-        `Date: ${new Date().toLocaleDateString('en-US')}`,
-        `Time: ${new Date().toLocaleTimeString('en-US')}`,
-        `Transaction ID: ${docId.substring(0, 8)}`,
-        '--------------------------------',
-        `Member: ${member.name}`,
-        `User ID: ${member.username}`,
-        `Code: ${member.code}`,
-        '--------------------------------',
-        `PLAN: ${member.plan}`,
-        `AMOUNT: EGP ${totalAmount}.00`,
-        `PAYMENT: ${paymentType}`,
-        '--------------------------------',
-        '       THANK YOU!',
-        '--------------------------------\n\n\n\n' // Extra line breaks for paper feed before cut
-    ].join('\n');
-    
-    return content;
-}
-
-/**
- * Connects to QZ Tray and prints the raw receipt data.
- * This also triggers the cash drawer kick.
- * @param {string} receiptData - The formatted text receipt content.
- * @returns {Promise<boolean>} - True if print command was sent successfully.
- */
-export async function printReceipt(receiptData) {
-    // 1. Establish connection to QZ Tray
-    if (!qz.websocket.isActive()) {
-        try {
-            await qz.websocket.connect();
-        } catch (e) {
-            console.error("QZ Tray connection failed:", e);
-            alert("Could not connect to QZ Tray. Ensure the software is running on this computer.");
-            return false;
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Dashboard | Subscriptions List</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* Specific dashboard styles to match your theme */
+        .dashboard-container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: rgba(30, 30, 30, 0.6);
+            border-radius: 20px;
+            border: 1px solid #333;
         }
-    }
 
-    try {
-        // 2. Specify the printer name. CORRECTED to 'casher'
-        const printer = 'casher'; // <-- CORRECT PRINTER NAME
-        const config = qz.configs.create(printer);
+        .search-area {
+            margin-bottom: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
 
-        // 3. Define the data array: Text, Drawer Kick, Full Cut
-        const data = [
-            receiptData, 
-            { type: 'raw', data: ESC_POS_KICK_DRAWER }, // Kick the Cash Drawer
-            { type: 'raw', data: ESC_POS_FULL_CUT }    // Cut the paper
-        ];
+        #search-code-input {
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid #444;
+            background: #000;
+            color: white;
+            font-size: 1.1rem;
+        }
 
-        // 4. Send the print job
-        await qz.print(config, data);
-        return true;
+        .sub-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
 
-    } catch (e) {
-        console.error("Printing failed:", e);
-        alert(`Receipt printing failed: ${e.message}. Check printer name ('casher') and QZ Tray connection.`);
-        return false;
-    }
-}
+        .sub-table th,
+        .sub-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        .status-badge {
+            padding: 0.3rem 0.6rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .btn-whatsapp {
+            background-color: #25D366;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .btn-toggle {
+            background-color: #444;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+            font-size: 12px;
+        }
+
+        .btn-toggle:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+
+<body class="font-sans gradient-bg text-text-light min-h-screen">
+
+    <header class="main-header">
+        <div class="container header-content">
+            <h1 class="logo">let's go <span class="logo-white">gym</span> <span
+                    style="color:var(--accent-yellow)">ADMIN</span></h1>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <div class="dashboard-container">
+
+            <div class="status-header">
+                <h2 class="text-3xl font-extrabold text-accent-yellow">Membership Lookup</h2>
+                <p class="text-gray-400 mt-2">Search by code or manage all members below.</p>
+            </div>
+
+            <div class="search-area">
+                <input type="text" id="search-code-input" placeholder="Enter Subscription Code..."
+                    oninput="searchByCode()">
+
+                <div id="search-result-container" class="hidden"
+                    style="background: #222; padding: 1.5rem; border-radius: 15px; border: 1px solid var(--accent-yellow);">
+                    <h3 class="text-accent-yellow">Found Member:</h3>
+                    <div id="search-result-content" class="mt-2"></div>
+                </div>
+            </div>
+
+            <hr style="border: 0; border-top: 1px solid #333; margin: 2rem 0;">
+
+            <div class="table-header" style="display:flex; justify-content: space-between; align-items: center;">
+                <h2 class="text-2xl font-bold">All Subscriptions</h2>
+                <button onclick="clearSubscriptions()"
+                    style="color: #ff4444; background: none; border: 1px solid #ff4444; padding: 5px 10px; border-radius: 5px; cursor: pointer;">Clear
+                    All Data</button>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="sub-table">
+                    <thead>
+                        <tr style="color: var(--accent-yellow);">
+                            <th>Name/Code</th>
+                            <th>Phone (WhatsApp)</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="subscriptions-table-body">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { db } from './firebase-init.js';
+        import { collection, getDocs, updateDoc, doc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore.js";
+
+        // Logic to calculate status based on time
+        function getSubscriptionStatus(sub) {
+            const now = Date.now();
+            const expiryTime = sub.startDate + (sub.duration * 24 * 60 * 60 * 1000);
+            const timeLeft = expiryTime - now;
+            const daysLeft = Math.ceil(timeLeft / (1000 * 60 * 60 * 24));
+
+            if (!sub.isPaid) return { label: 'UNPAID', css: 'background:#f44336', active: false, days: 0 };
+            if (timeLeft <= 0) return { label: 'EXPIRED', css: 'background:#666', active: false, days: 0 };
+            return { label: `ACTIVE (${daysLeft}d)`, css: 'background:#4CAF50', active: true, days: daysLeft };
+        }
+
+        // LOAD TABLE
+        async function loadTable() {
+            const tableBody = document.getElementById('subscriptions-table-body');
+            tableBody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+            const querySnapshot = await getDocs(collection(db, "subscriptions"));
+            tableBody.innerHTML = '';
+
+            querySnapshot.forEach((documentSnap) => {
+                const sub = documentSnap.data();
+                const status = getSubscriptionStatus(sub);
+
+                const row = `
+                    <tr>
+                        <td><strong>${sub.name}</strong><br><small style="color:#888">#${sub.code}</small></td>
+                        <td>${sub.phone || 'No Phone'}</td>
+                        <td>${sub.plan}</td>
+                        <td><span class="status-badge" style="${status.css}">${status.label}</span></td>
+                        <td>
+                            <button onclick="togglePaymentStatus('${documentSnap.id}', ${sub.isPaid})" class="btn-toggle">Toggle Paid</button>
+                            <button onclick="sendWhatsApp('${sub.phone}', '${sub.name}', ${sub.isPaid})" class="btn-whatsapp">WhatsApp</button>
+                        </td>
+                    </tr>
+                `;
+                tableBody.innerHTML += row;
+            });
+        }
+
+        // SEARCH FUNCTION
+        window.searchByCode = async () => {
+            const code = document.getElementById('search-code-input').value;
+            const container = document.getElementById('search-result-container');
+            const content = document.getElementById('search-result-content');
+
+            if (code.length < 4) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            const q = query(collection(db, "subscriptions"), where("code", "==", code));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                container.classList.remove('hidden');
+                const docSnap = querySnapshot.docs[0];
+                const sub = docSnap.data();
+                const status = getSubscriptionStatus(sub);
+
+                content.innerHTML = `
+                    <p><strong>Name:</strong> ${sub.name}</p>
+                    <p><strong>Phone:</strong> ${sub.phone}</p>
+                    <p><strong>Status:</strong> <span class="status-badge" style="${status.css}">${status.label}</span></p>
+                    <div style="margin-top:10px">
+                        <button onclick="togglePaymentStatus('${docSnap.id}', ${sub.isPaid})" class="btn-toggle">Update Payment</button>
+                        <button onclick="sendWhatsApp('${sub.phone}', '${sub.name}', ${sub.isPaid})" class="btn-whatsapp">Notify via WhatsApp</button>
+                    </div>
+                `;
+            } else {
+                container.classList.add('hidden');
+            }
+        };
+
+        // TOGGLE PAYMENT (Automatically ends or starts subscription)
+        window.togglePaymentStatus = async (docId, currentPaidStatus) => {
+            const docRef = doc(db, "subscriptions", docId);
+            await updateDoc(docRef, {
+                isPaid: !currentPaidStatus,
+                startDate: Date.now() // Resets the 30-day timer when marked as paid
+            });
+            loadTable();
+            searchByCode(); // Update search result if visible
+        };
+
+        // WHATSAPP TRIGGER
+        window.sendWhatsApp = (phone, name, isPaid) => {
+            if (!phone) return alert("No phone number recorded.");
+            const msg = isPaid
+                ? `Hello ${name}, your "Let's Go Gym" subscription is now ACTIVE. Enjoy your workout!`
+                : `Hello ${name}, your gym subscription has EXPIRED. Please visit us to renew.`;
+            window.open(`https://wa.me/${phone.replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+        };
+
+        // CLEAR ALL
+        window.clearSubscriptions = async () => {
+            if (confirm("Are you sure? This will delete ALL members permanently.")) {
+                const querySnapshot = await getDocs(collection(db, "subscriptions"));
+                const deletePromises = querySnapshot.docs.map(d => deleteDoc(doc(db, "subscriptions", d.id)));
+                await Promise.all(deletePromises);
+                loadTable();
+            }
+        };
+
+        // Initialize
+        loadTable();
+    </script>
+</body>
+
+</html>
